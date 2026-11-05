@@ -1,0 +1,114 @@
+---
+title: "Introduction à rAgenceBio"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction à rAgenceBio}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# rAgenceBio
+
+Le package **rAgenceBio** fournit une interface R à l'API de l'Agence Bio,
+le portail open data des professionnels certifiés biologiques en France.
+
+## Installation
+
+```{r eval = FALSE}
+remotes::install_git("https://github.com/yourname/rAgenceBio")
+# ou
+devtools::install_local()
+```
+
+## Chargement
+
+```{r eval = FALSE}
+library(rAgenceBio)
+```
+
+## Recherche d'opérateurs
+
+La fonction `ab_search()` permet de rechercher des opérateurs bio
+par mot-clé libre ou par code postal.
+
+```{r eval = FALSE}
+# Rechercher des brasseries bio
+brasseries <- ab_search("brasserie", limit = 10)
+print(brasseries)
+```
+
+```{r eval = FALSE}
+# Combiner mot-clé + code postal
+ops <- ab_search(query = "vigneron", code_postal = "33000", limit = 5)
+```
+
+## Recherche par SIRET
+
+```{r eval = FALSE}
+ops <- ab_by_siret("51438127600013")
+print(ops)
+```
+
+Le résultat est **entièrement aplati** : aucune colonne imbriquée
+(data.frame ou liste). Les champs scalaires deviennent des colonnes
+directes, les objets (p. ex. `venteAnnuaire`) sont éclatés en colonnes
+`champ.sousChamp`, et les champs multi-valués (`adressesOperateurs`,
+`productions`, `certificats`, ...) sont convertis en chaînes lisibles.
+Les colonnes `codePostal`, `ville`, `lat` et `long` sont extraites de la
+première adresse.
+
+## Fiche d'un opérateur
+
+Le résultat d'`ab_get()` est lui aussi **entièrement aplati** (comme
+`ab_by_siret()`) : une ligne par adresse, aucune colonne imbriquée. Pour
+l'enregistrement brut sous forme de liste : `ab_get(126851, flatten = FALSE)`.
+
+```{r eval = FALSE}
+op <- ab_get(126851)
+print(op)
+```
+
+## Données aplaties
+
+La fonction `ab_flatten()` transforme les données imbriquées de l'API
+en tibbles tidy, prêts pour l'analyse avec `dplyr`.
+
+```{r eval = FALSE}
+ops <- ab_search("producteur", limit = 10)
+flat <- ab_flatten(ops, level = "summary")
+print(flat)
+```
+
+### Niveaux d'aplatissement
+
+| Niveau | Description |
+|--------|-------------|
+| `"summary"` | Une ligne par opérateur (adresse principale, activités, certificat) |
+| `"productions"` | Une ligne par (opérateur, production) |
+| `"addresses"` | Une ligne par (opérateur, adresse) |
+| `"certificates"` | Une ligne par (opérateur, certificat) |
+
+## Suggestions de recherche
+
+```{r eval = FALSE}
+sugg <- ab_suggestions("vigneron")
+print(head(sugg, 5))
+```
+
+## Limites
+
+- **50 req/s/IP** : le package applique un rate limiter automatique.
+- **500 résultats maximum par page** (`nb`/`debut`) ;
+  `ab_search()` récupère automatiquement les pages nécessaires.
+- Les données reflètent les opérateurs **certifiés** par les organismes
+  certificateurs agréés INAO.
+
+## Références
+
+- Documentation de l'API : <https://www.data.gouv.fr/dataservices/api-professionnels-bio>
+- Annuaire en ligne : <https://annuaire.agencebio.org>
+- CGU : <https://agence-bio.gitbook.io/api-professionnels-du-bio>

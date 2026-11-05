@@ -1,0 +1,10 @@
+# Generated manually — run roxygen2::roxygenise() to regenerate
+export(ab_search)
+export(ab_get)
+export(ab_by_siret)
+export(ab_suggestions)
+export(ab_flatten)
+import(httr)
+import(jsonlite)
+import(dplyr)
+import(tidyr)
