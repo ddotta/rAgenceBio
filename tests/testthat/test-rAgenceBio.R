@@ -3,7 +3,7 @@
 # Run with: devtools::test()
 test_that("ab_search returns a tibble with expected columns", {
   skip_if_offline("opendata.agencebio.org")
-
+  
   result <- ab_search("brasserie", limit = 5)
   expect_s3_class(result, "tbl_df")
   expect_true(all(c("id", "nomAnnuaire", "siret", "numeroBio",
@@ -14,7 +14,7 @@ test_that("ab_search returns a tibble with expected columns", {
 
 test_that("ab_search with code_postal filters results", {
   skip_if_offline("opendata.agencebio.org")
-
+  
   result <- ab_search(code_postal = "75001", limit = 5)
   expect_s3_class(result, "tbl_df")
   # All returned operators should have CP 75001
@@ -24,7 +24,7 @@ test_that("ab_search with code_postal filters results", {
 
 test_that("ab_search returns empty tibble for no results", {
   skip_if_offline("opendata.agencebio.org")
-
+  
   result <- ab_search(query = "zzzzzzzzz_inexistant_xxx", limit = 5)
   expect_s3_class(result, "tbl_df")
   expect_equal(nrow(result), 0)
@@ -32,7 +32,7 @@ test_that("ab_search returns empty tibble for no results", {
 
 test_that("ab_get returns flattened operator data for valid numeroBio", {
   skip_if_offline("opendata.agencebio.org")
-
+  
   # First, find a valid numeroBio
   search_result <- ab_search("brasserie", limit = 1)
   if (nrow(search_result) > 0 && !is.na(search_result$numeroBio[1])) {
@@ -50,7 +50,7 @@ test_that("ab_get returns flattened operator data for valid numeroBio", {
 
 test_that("ab_get returns NULL for invalid numeroBio", {
   skip_if_offline("opendata.agencebio.org")
-
+  
   op <- ab_get(999999999)
   expect_null(op)
 })
@@ -66,7 +66,7 @@ test_that("ab_by_siret validates input format", {
 
 test_that("ab_by_siret skips unknown SIRETs without error", {
   skip_if_offline("opendata.agencebio.org")
-
+  
   # Regression test: the API answers with an empty list in `items` when a
   # SIRET is unknown, which used to crash seq_len(nrow(items)).
   expect_no_error(
@@ -79,18 +79,18 @@ test_that("ab_by_siret skips unknown SIRETs without error", {
 
 test_that("ab_by_siret returns all API fields as columns (no raw column)", {
   skip_if_offline("opendata.agencebio.org")
-
+  
   ops <- ab_by_siret("51438127600013")
   expect_s3_class(ops, "tbl_df")
   expect_true(nrow(ops) >= 1)
   expect_false("raw" %in% names(ops))
   expect_true(all(c("id", "raisonSociale", "siret", "numeroBio", "codeNAF") %in%
-                  names(ops)))
+                    names(ops)))
 })
 
 test_that("ab_by_siret returns a fully flattened tibble (no nested data.frames)", {
   skip_if_offline("opendata.agencebio.org")
-
+  
   ops <- ab_by_siret("51438127600013")
   expect_s3_class(ops, "tbl_df")
   expect_true(nrow(ops) >= 1)
@@ -147,7 +147,7 @@ test_that("ab_by_siret flattens nested structures (mocked)", {
     },
     .package = "rAgenceBio"
   )
-
+  
   ops <- ab_by_siret("51438127600013")
   expect_s3_class(ops, "tbl_df")
   expect_equal(nrow(ops), 1)
@@ -177,7 +177,7 @@ test_that("ab_by_siret handles an empty items list", {
     },
     .package = "rAgenceBio"
   )
-
+  
   expect_no_error(ops <- ab_by_siret("98765432100022"))
   expect_s3_class(ops, "tbl_df")
   expect_equal(nrow(ops), 0)
@@ -197,7 +197,7 @@ test_that("ab_by_siret handles mixed known and unknown SIRETs", {
     },
     .package = "rAgenceBio"
   )
-
+  
   expect_no_error(
     ops <- ab_by_siret(c("51438127600013", "98765432100022"))
   )
@@ -215,7 +215,7 @@ test_that("ab_by_siret handles a single record returned as a plain list", {
     },
     .package = "rAgenceBio"
   )
-
+  
   ops <- ab_by_siret("51438127600013")
   expect_equal(nrow(ops), 1)
   expect_equal(ops$raisonSociale, "CECOBIO")
@@ -233,7 +233,7 @@ test_that("ab_flatten accepts ab_by_siret output without a raw column", {
       codePostal = "13004", ville = "MARSEILLE", stringsAsFactors = FALSE
     ))
   )
-
+  
   flat <- ab_flatten(ops, level = "summary")
   expect_s3_class(flat, "tbl_df")
   expect_equal(flat$codePostal, "13004")
@@ -242,7 +242,7 @@ test_that("ab_flatten accepts ab_by_siret output without a raw column", {
 
 test_that("ab_suggestions returns a tibble", {
   skip_if_offline("opendata.agencebio.org")
-
+  
   result <- ab_suggestions("brasserie")
   expect_s3_class(result, "tbl_df")
   expect_named(result, c("nomAnnuaire", "nom", "codePostal"))
@@ -254,7 +254,7 @@ test_that("ab_suggestions requires at least 2 characters", {
 
 test_that("ab_flatten produces a summary tibble", {
   skip_if_offline("opendata.agencebio.org")
-
+  
   ops <- ab_search("brasserie", limit = 3)
   flat <- ab_flatten(ops, level = "summary")
   expect_s3_class(flat, "tbl_df")
@@ -265,7 +265,7 @@ test_that("ab_flatten produces a summary tibble", {
 
 test_that("ab_flatten productions level works", {
   skip_if_offline("opendata.agencebio.org")
-
+  
   ops <- ab_search("producteur", limit = 3)
   flat <- ab_flatten(ops, level = "productions")
   expect_s3_class(flat, "tbl_df")
@@ -277,7 +277,7 @@ test_that("ab_flatten productions level works", {
 
 test_that("ab_flatten addresses level works", {
   skip_if_offline("opendata.agencebio.org")
-
+  
   ops <- ab_search("brasserie", limit = 3)
   flat <- ab_flatten(ops, level = "addresses")
   expect_s3_class(flat, "tbl_df")
@@ -301,9 +301,9 @@ test_that("ab_expand splits adressesOperateurs into typed columns", {
       "typeAdresseOperateurs=Lieux d'activité, Siège social, Lieux de vente"
     )
   )
-
+  
   res <- ab_expand(ops)
-
+  
   expect_s3_class(res, "tbl_df")
   expect_true(all(c(
     "adressesOperateurs_id", "adressesOperateurs_lieu",
@@ -315,7 +315,7 @@ test_that("ab_expand splits adressesOperateurs into typed columns", {
     "adressesOperateurs_operateurAdrOpId",
     "adressesOperateurs_typeAdresseOperateurs"
   ) %in% names(res)))
-
+  
   expect_equal(res$adressesOperateurs_id, 28835L)
   expect_equal(res$adressesOperateurs_lieu, "60 AVENUE SAINT JUST")
   # Code postal et code commune : toujours du texte (zéros initiaux)
@@ -344,9 +344,9 @@ test_that("ab_expand handles multiple records and missing values", {
       NA_character_
     )
   )
-
+  
   res <- ab_expand(ops)
-
+  
   # Deux enregistrements : les valeurs d'un même champ sont jointes par ", "
   expect_equal(res$adressesOperateurs_ville, c("PARIS, LYON", NA))
   expect_equal(res$adressesOperateurs_id, c("10, 11", NA))
@@ -361,7 +361,7 @@ test_that("ab_expand keeps identifiers as text and validates input", {
     siret = "51438127600013",
     adressesOperateurs = "codePostal=06000; siret=51438127600013; lat=43.5"
   )
-
+  
   res <- ab_expand(ops)
   # Code postal avec zéro initial : doit rester du texte
   expect_equal(res$adressesOperateurs_codePostal, "06000")
@@ -372,7 +372,7 @@ test_that("ab_expand keeps identifiers as text and validates input", {
   # lat est numérique
   expect_equal(res$adressesOperateurs_lat, 43.5)
   expect_type(res$adressesOperateurs_lat, "double")
-
+  
   expect_error(ab_expand(ops, columns = "inconnue"), "absente")
   expect_error(ab_expand("pas un tibble"), "data.frame")
 })
@@ -383,9 +383,9 @@ test_that("ab_expand expands several columns at once", {
     categories = "id=4; nom=Magasins spécialisés",
     activites = "id=3; nom=Distribution"
   )
-
+  
   res <- ab_expand(ops, columns = c("categories", "activites"))
-
+  
   expect_equal(res$categories_id, 4L)
   expect_equal(res$categories_nom, "Magasins spécialisés")
   expect_equal(res$activites_id, 3L)
@@ -399,9 +399,9 @@ test_that("ab_expand keeps empty-valued fields as NA columns", {
       "dateSuspension=; url=https://example.org/a?x=1&y=2"
     )
   )
-
+  
   res <- ab_expand(ops, columns = "certificats")
-
+  
   # Champ vide ("nom=") : la colonne existe avec NA, la clé n'est pas perdue
   expect_true("certificats_dateSuspension" %in% names(res))
   expect_true(is.na(res$certificats_dateSuspension))
@@ -439,9 +439,9 @@ test_that("ab_by_siret expands multi-valued columns by default (mocked)", {
     },
     .package = "rAgenceBio"
   )
-
+  
   ops <- ab_by_siret("51438127600013")
-
+  
   # Colonnes dépliées en "<champ>_<sousChamp>"
   expect_equal(ops$adressesOperateurs_lieu, "60 AVENUE SAINT JUST")
   expect_equal(ops$adressesOperateurs_codePostal, "13004")
@@ -455,7 +455,7 @@ test_that("ab_by_siret expands multi-valued columns by default (mocked)", {
   # productions n'est pas déplié (sous-enregistrements imbriqués)
   expect_false(any(startsWith(names(ops), "productions_")))
   expect_match(ops$productions, "etatProduction=AB", fixed = TRUE)
-
+  
   # expand = FALSE : aucune colonne dépliée
   ops_raw <- ab_by_siret("51438127600013", expand = FALSE)
   expect_false(any(startsWith(names(ops_raw), "adressesOperateurs_")))
@@ -484,7 +484,7 @@ test_that("ab_by_siret duplicates rows per address by default (mocked)", {
     },
     .package = "rAgenceBio"
   )
-
+  
   # Deux adresses : deux lignes, une par adresse (comportement par défaut)
   ops <- ab_by_siret("48380302900048")
   expect_equal(nrow(ops), 2)
@@ -498,7 +498,7 @@ test_that("ab_by_siret duplicates rows per address by default (mocked)", {
   expect_equal(ops$lat, c(49.397646, 49.338649))
   expect_equal(ops$long, c(1.155471, 1.130055))
   expect_true(ops$adressesOperateurs_active[1])
-
+  
   # long = FALSE : une ligne, valeurs jointes
   ops_wide <- ab_by_siret("48380302900048", long = FALSE)
   expect_equal(nrow(ops_wide), 1)
@@ -515,9 +515,9 @@ test_that("ab_expand long duplicates rows per record", {
       NA_character_
     )
   )
-
+  
   res <- ab_expand(ops, long = TRUE)
-
+  
   expect_equal(nrow(res), 3)
   expect_equal(res$id, c(1L, 1L, 2L))
   expect_equal(res$adressesOperateurs_id, c(10L, 11L, NA))
@@ -550,7 +550,7 @@ test_that("ab_search returns fully expanded columns (mocked)", {
     },
     .package = "rAgenceBio"
   )
-
+  
   res <- ab_search("CECOBIO")
   expect_s3_class(res, "tbl_df")
   expect_equal(nrow(res), 1)
@@ -565,7 +565,7 @@ test_that("ab_search returns fully expanded columns (mocked)", {
   expect_match(res$adressesOperateurs, "codePostal=13004", fixed = TRUE)
   # nomAnnuaire calculé par repli
   expect_equal(res$nomAnnuaire, "CECOBIO")
-
+  
   # expand = FALSE : comportement historique (colonnes de premier niveau)
   res_raw <- ab_search("CECOBIO", expand = FALSE)
   expect_false("adressesOperateurs_lieu" %in% names(res_raw))
@@ -594,7 +594,7 @@ test_that("ab_search can duplicate rows per address with long = TRUE", {
     },
     .package = "rAgenceBio"
   )
-
+  
   res <- ab_search("CECOBIO", long = TRUE)
   expect_equal(nrow(res), 2)
   expect_equal(res$adressesOperateurs_codePostal, c("13004", "13005"))
@@ -620,7 +620,7 @@ test_that("ab_get returns a flattened tibble by default (mocked)", {
     },
     .package = "rAgenceBio"
   )
-
+  
   flat <- ab_get(126851L)
   expect_s3_class(flat, "tbl_df")
   expect_equal(nrow(flat), 1)
@@ -628,11 +628,137 @@ test_that("ab_get returns a flattened tibble by default (mocked)", {
   expect_equal(flat$codePostal, "13004")
   expect_equal(flat$ville, "MARSEILLE")
   expect_false(any(vapply(flat, is.list, logical(1))))
-
+  
   # flatten = FALSE : l'enregistrement brut en liste
   op <- ab_get(126851L, flatten = FALSE)
   expect_type(op, "list")
   expect_equal(op$raisonSociale, "CECOBIO")
+})
+
+# Faux .ab_request pour ab_get() : une réponse par numeroBio connu, NULL pour
+# les autres (comme error_on_404 = FALSE sur un 404). Les paramètres reçus sont
+# consignés dans `env$queries` pour vérifier les appels effectués.
+.fake_ab_get_request <- function(env) {
+  records <- list(
+    "126851" = data.frame(
+      id = 28792L, raisonSociale = "CECOBIO", siret = "51438127600013",
+      numeroBio = 126851L,
+      adressesOperateurs = I(list(data.frame(
+        codePostal = "13004", ville = "MARSEILLE", stringsAsFactors = FALSE
+      ))),
+      stringsAsFactors = FALSE
+    ),
+    "125787" = data.frame(
+      id = 11111L, raisonSociale = "FERME DU XX", siret = "48380302900048",
+      numeroBio = 125787L,
+      adressesOperateurs = I(list(data.frame(
+        codePostal = "76240", ville = "BELBEUF", stringsAsFactors = FALSE
+      ))),
+      stringsAsFactors = FALSE
+    )
+  )
+  env$queries <- list()
+  env$error_on_404 <- NULL
+  function(url, query = NULL, error_on_404 = TRUE) {
+    env$queries[[length(env$queries) + 1]] <- query
+    env$error_on_404 <- c(env$error_on_404, error_on_404)
+    rec <- records[[as.character(query$numeroBio)]]
+    if (is.null(rec)) NULL else list(rec)
+  }
+}
+
+test_that("ab_get accepts several numeroBio and binds them (mocked)", {
+  env <- new.env()
+  local_mocked_bindings(
+    .ab_request = .fake_ab_get_request(env),
+    .package = "rAgenceBio"
+  )
+  
+  res <- ab_get(c(126851L, 125787L))
+  expect_s3_class(res, "tbl_df")
+  expect_equal(nrow(res), 2)
+  expect_equal(res$numeroBio, c(126851L, 125787L))
+  expect_equal(res$codePostal, c("13004", "76240"))
+  expect_equal(res$ville, c("MARSEILLE", "BELBEUF"))
+  expect_false(any(vapply(res, is.list, logical(1))))
+  
+  # Une requête par numéro, chacune avec un paramètre de longueur 1
+  # (régression : « values must be length 1 » dans httr::modify_url)
+  expect_length(env$queries, 2)
+  expect_true(all(vapply(env$queries, function(q) length(q$numeroBio) == 1L,
+                         logical(1))))
+  # Un numéro inconnu ne doit pas faire échouer la boucle
+  expect_false(any(env$error_on_404))
+})
+
+test_that("ab_get accepts character and numeric vectors alike (mocked)", {
+  env <- new.env()
+  local_mocked_bindings(
+    .ab_request = .fake_ab_get_request(env),
+    .package = "rAgenceBio"
+  )
+  
+  res_chr <- ab_get(c("126851", "125787"))
+  res_num <- ab_get(c(126851, 125787))
+  expect_equal(res_chr$numeroBio, res_num$numeroBio)
+  expect_equal(nrow(res_chr), 2)
+})
+
+test_that("ab_get ignores unknown numeroBio among several (mocked)", {
+  env <- new.env()
+  local_mocked_bindings(
+    .ab_request = .fake_ab_get_request(env),
+    .package = "rAgenceBio"
+  )
+  
+  res <- ab_get(c(126851L, 999999999L, 125787L))
+  expect_equal(nrow(res), 2)
+  expect_equal(res$numeroBio, c(126851L, 125787L))
+  # Les trois numéros ont bien été interrogés
+  expect_length(env$queries, 3)
+})
+
+test_that("ab_get returns NULL when no numeroBio is found (mocked)", {
+  env <- new.env()
+  local_mocked_bindings(
+    .ab_request = .fake_ab_get_request(env),
+    .package = "rAgenceBio"
+  )
+  
+  expect_null(ab_get(999999999L))
+  expect_null(ab_get(c(999999999L, 888888888L)))
+  expect_null(ab_get(numeric(0)))
+  expect_null(ab_get(NA))
+})
+
+test_that("ab_get drops duplicated numeroBio before querying (mocked)", {
+  env <- new.env()
+  local_mocked_bindings(
+    .ab_request = .fake_ab_get_request(env),
+    .package = "rAgenceBio"
+  )
+  
+  res <- ab_get(c(126851L, 126851L, 125787L))
+  expect_equal(nrow(res), 2)
+  expect_length(env$queries, 2)
+})
+
+test_that("ab_get(flatten = FALSE) returns a named list for several numeroBio (mocked)", {
+  env <- new.env()
+  local_mocked_bindings(
+    .ab_request = .fake_ab_get_request(env),
+    .package = "rAgenceBio"
+  )
+  
+  raw <- ab_get(c(126851L, 125787L), flatten = FALSE)
+  expect_type(raw, "list")
+  expect_named(raw, c("126851", "125787"))
+  expect_equal(raw[["126851"]]$raisonSociale, "CECOBIO")
+  expect_equal(raw[["125787"]]$raisonSociale, "FERME DU XX")
+  
+  # Un seul numéro : l'enregistrement directement (comportement inchangé)
+  one <- ab_get(126851L, flatten = FALSE)
+  expect_equal(one$raisonSociale, "CECOBIO")
 })
 
 test_that("progress helpers stay silent in non-interactive sessions", {
@@ -642,4 +768,3 @@ test_that("progress helpers stay silent in non-interactive sessions", {
   expect_no_error(.ab_progress_tick(NULL, 2))
   expect_no_error(.ab_progress_done(NULL))
 })
-

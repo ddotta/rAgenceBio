@@ -29,45 +29,61 @@
 #' }
 #' @export
 ab_get <- function(numeroBio, flatten = TRUE) {
+  numeroBio <- as.character(numeroBio)
+  numeroBio <- trimws(numeroBio[!is.na(numeroBio)])
+  numeroBio <- unique(numeroBio[nzchar(numeroBio)])
+  if (length(numeroBio) == 0) {
+    return(NULL)
+  }
+  
+  pb <- .ab_progress_new(length(numeroBio), "Recherche par numeroBio")
+  on.exit(.ab_progress_done(pb), add = TRUE)
+  
+  results <- lapply(seq_along(numeroBio), function(i) {
+    res <- .ab_get_one(numeroBio[[i]])
+    .ab_progress_tick(pb, i)
+    res
+  })
+  names(results) <- numeroBio
+  results <- results[!vapply(results, is.null, logical(1))]
+  
+  if (length(results) == 0) {
+    return(NULL)
+  }
+  
+  if (isTRUE(flatten)) {
+    items <- dplyr::bind_rows(unname(results))
+    return(.ab_flatten_items(items, expand = TRUE, long = TRUE))
+  }
+  
+  # un seul numéro : l'enregistrement brut ; plusieurs : liste nommée par numeroBio
+  raw <- lapply(results, function(it) ab_unwrap(as.list(it[1, , drop = FALSE])))
+  if (length(numeroBio) == 1) raw[[1]] else raw
+}
+
+.ab_get_one <- function(nb) {
   data <- .ab_request(
     url = paste0(.ab_base_opendata, "/api/gouv/operateurs/"),
-    query = list(numeroBio = as.character(numeroBio))
+    query = list(numeroBio = nb),
+    error_on_404 = FALSE   # un numéro inconnu est ignoré, il n'interrompt pas la boucle
   )
-
-  # L'API répond par un tableau JSON d'opérateurs (0 ou 1 enregistrement)
-  # dont les champs sont au niveau supérieur.
+  
   if (is.null(data) || length(data) == 0 ||
       (is.data.frame(data) && nrow(data) == 0)) {
     return(NULL)
   }
-
-  # Normalise la réponse en un data.frame à une ligne : champs scalaires en
-  # colonnes atomiques, objets imbriqués (p. ex. venteAnnuaire) en colonnes
-  # data.frame et champs multi-valués (adressesOperateurs, productions, ...)
-  # en colonnes-listes. C'est la forme jsonlite qu'attend .ab_flatten_items()
-  # (voir ab_by_siret()) : on évite ainsi de reconvertir en liste, ce qui
-  # casserait as_tibble() quand les objets imbriqués ont des tailles
-  # différentes (p. ex. productions à 3 lignes et siteWebs vide).
+  
   if (is.data.frame(data)) {
-    items <- data[1, , drop = FALSE]
+    return(dplyr::as_tibble(data[1, , drop = FALSE]))
+  }
+  rec <- ab_unwrap(data[[1]])
+  if (is.data.frame(rec)) {
+    dplyr::as_tibble(rec[1, , drop = FALSE])
   } else {
-    rec <- ab_unwrap(data[[1]])
-    items <- if (is.data.frame(rec)) {
-      rec[1, , drop = FALSE]
-    } else {
-      dplyr::as_tibble(lapply(rec, function(v) {
-        if (is.data.frame(v) || is.list(v)) list(v) else v
-      }))
-    }
+    dplyr::as_tibble(lapply(rec, function(v) {
+      if (is.data.frame(v) || is.list(v)) list(v) else v
+    }))
   }
-
-  if (isTRUE(flatten)) {
-    return(.ab_flatten_items(dplyr::as_tibble(items),
-                             expand = TRUE, long = TRUE))
-  }
-
-  # Enregistrement brut sous forme de liste imbriquée.
-  ab_unwrap(as.list(items[1, , drop = FALSE]))
 }
 
 #' Interne : normaliser l'élément `items` de l'API en tibble
