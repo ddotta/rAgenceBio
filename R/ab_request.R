@@ -6,6 +6,12 @@
 #' \code{options(rAgenceBio.ssl_verifypeer = FALSE)}. C'est utile derrière
 #' les proxys d'entreprise qui présentent des certificats auto-signés.
 #'
+#' Les erreurs réseau transitoires (timeout, connexion refusée ou coupée)
+#' sont réessayées avec un backoff exponentiel, au même titre que les
+#' codes HTTP 429/502/503/504. Options : \code{rAgenceBio.retries}
+#' (défaut 4), \code{rAgenceBio.timeout} (secondes, défaut 30) et
+#' \code{rAgenceBio.connecttimeout} (secondes, défaut 30).
+#'
 #' @param url Caractère. URL complète à requêter.
 #' @param query Vecteur de caractères nommé de paramètres de requête
 #'   (les valeurs NA sont supprimées).
@@ -45,33 +51,41 @@
     "certificate, retry with options(rAgenceBio.ssl_verifypeer = FALSE)."
   )
 
-  # Réessayer quelques fois les erreurs de passerelle transitoires
-  # (limitation de débit, délais du proxy) avec un backoff exponentiel
-  # avant d'abandonner.
-  retries <- as.integer(getOption("rAgenceBio.retries", 2L))
+  # Réessayer les erreurs de passerelle transitoires (limitation de débit,
+  # délais du proxy) ET les erreurs réseau transitoires (timeout de
+  # connexion, connexion coupée) avec un backoff exponentiel.
+  retries <- as.integer(getOption("rAgenceBio.retries", 4L))
+  timeout <- getOption("rAgenceBio.timeout", 30)
+  connecttimeout <- getOption("rAgenceBio.connecttimeout", 30)
+
+  curl_cfg <- if (verify_peer) {
+    httr::config(connecttimeout = connecttimeout)
+  } else {
+    httr::config(connecttimeout = connecttimeout, ssl_verifypeer = 0L)
+  }
 
   resp <- NULL
   for (attempt in 0:retries) {
     resp <- tryCatch(
-      {
-        if (verify_peer) {
-          httr::GET(url, req_headers)
-        } else {
-          httr::GET(url, req_headers, httr::config(ssl_verifypeer = 0L))
-        }
-      },
-      error = function(e) {
-        msg <- conditionMessage(e)
-        if (grepl("SSL|certificate", msg)) {
-          msg <- paste0(msg, ssl_hint)
-        }
-        stop(msg, call. = FALSE)
-      }
+      httr::GET(url, req_headers, curl_cfg, httr::timeout(timeout)),
+      error = function(e) e
     )
+
+    if (inherits(resp, "error")) {
+      msg <- conditionMessage(resp)
+      if (grepl("SSL|certificate", msg)) {
+        stop(paste0(msg, ssl_hint), call. = FALSE)
+      }
+      if (attempt < retries) {
+        Sys.sleep(min(2^attempt, 30))  # 1s, 2s, 4s, ...
+        next
+      }
+      stop(msg, call. = FALSE)
+    }
 
     status <- httr::status_code(resp)
     if (status %in% c(429L, 502L, 503L, 504L) && attempt < retries) {
-      Sys.sleep(2^attempt)  # 1s, 2s, ...
+      Sys.sleep(min(2^attempt, 30))
       next
     }
     break

@@ -159,7 +159,9 @@ ab_get <- function(numeroBio, flatten = TRUE) {
 #'   colonnes pratiques \code{codePostal}, \code{ville}, \code{lat} et
 #'   \code{long} sont extraites de la première adresse (ou de chaque adresse
 #'   en mode \code{long = TRUE}, qui duplique alors les lignes). Un tibble
-#'   de 0 ligne est renvoyé quand aucun SIRET ne correspond.
+#'   de 0 ligne est renvoyé quand aucun SIRET ne correspond. L'attribut
+#'   \code{"erreurs"} (tibble \code{siret}, \code{erreur}) liste les SIRET
+#'   en échec réseau persistant (timeout) ; les autres SIRET sont traités.
 #'
 #' @examples
 #' \dontrun{
@@ -174,20 +176,36 @@ ab_get <- function(numeroBio, flatten = TRUE) {
 ab_by_siret <- function(siret, expand = TRUE, long = TRUE) {
   # ab_by_siret accepte un ou plusieurs SIRET ; l'API n'en traite qu'un à
   # la fois. On boucle dessus et on concatène les résultats, avec une barre
-  # de progression en session interactive.
+  # de progression en session interactive. Une erreur réseau persistante
+  # sur un SIRET (après les nouvelles tentatives de .ab_request) ne
+  # interrompt pas la boucle : le SIRET est listé dans l'attribut "erreurs"
+  # du résultat et un avertissement récapitulatif est émis.
   siret <- as.character(siret)
   pb <- .ab_progress_new(length(siret), "Recherche par SIRET")
   on.exit(.ab_progress_done(pb), add = TRUE)
+  erreurs <- list()
   results <- lapply(seq_along(siret), function(i) {
+    on.exit(.ab_progress_tick(pb, i), add = TRUE)
     s <- trimws(siret[[i]])
     if (!grepl("^[0-9]{14}$", s)) {
       warning("Ignoring invalid SIRET (must be 14 digits): ", s, call. = FALSE)
       return(NULL)
     }
-    data <- .ab_request(
-      url = paste0(.ab_base_opendata, "/api/gouv/operateurs/"),
-      query = list(siret = s)
+    data <- tryCatch(
+      .ab_request(
+        url = paste0(.ab_base_opendata, "/api/gouv/operateurs/"),
+        query = list(siret = s),
+        error_on_404 = FALSE
+      ),
+      error = function(e) {
+        erreurs[[length(erreurs) + 1L]] <<- list(siret = s,
+                                                 erreur = conditionMessage(e))
+        NULL
+      }
     )
+    if (is.null(data)) {
+      return(NULL)
+    }
     items <- .ab_items_df(data$items)
     if (nrow(items) == 0) {
       return(NULL)
@@ -195,15 +213,29 @@ ab_by_siret <- function(siret, expand = TRUE, long = TRUE) {
     if (!"siret" %in% names(items)) {
       items$siret <- s
     }
-    .ab_progress_tick(pb, i)
     # Chaque champ de l'API devient une colonne : une ligne par
     # opérateur trouvé.
     items
   })
 
+  err_df <- if (length(erreurs) > 0) {
+    dplyr::tibble(
+      siret = vapply(erreurs, `[[`, character(1), "siret"),
+      erreur = vapply(erreurs, `[[`, character(1), "erreur")
+    )
+  } else {
+    dplyr::tibble(siret = character(0), erreur = character(0))
+  }
+  if (nrow(err_df) > 0) {
+    warning(nrow(err_df), " SIRET en erreur réseau (voir attr(, \"erreurs\")) ; ",
+            "premier message : ", err_df$erreur[[1]], call. = FALSE)
+  }
+
   results <- results[!vapply(results, is.null, logical(1))]
   if (length(results) == 0) {
-    return(dplyr::tibble())
+    out <- dplyr::tibble()
+    attr(out, "erreurs") <- err_df
+    return(out)
   }
 
   items <- dplyr::bind_rows(results)
@@ -211,7 +243,9 @@ ab_by_siret <- function(siret, expand = TRUE, long = TRUE) {
   # Aplatit (objets éclatés, champs multi-valués en chaînes lisibles) puis
   # déplie en colonnes séparées ; avec long = TRUE (défaut), une ligne par
   # adresse quand un opérateur en possède plusieurs.
-  .ab_flatten_items(items, expand = expand, long = long)
+  out <- .ab_flatten_items(items, expand = expand, long = long)
+  attr(out, "erreurs") <- err_df
+  out
 }
 
 # Interne : aplatir un data.frame d'enregistrements bruts (une ligne par
